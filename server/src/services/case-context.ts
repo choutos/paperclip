@@ -73,7 +73,9 @@ export async function getCaseExecutionContext(db: Db, input: {
   await assertCaseTrustedForExecution(db, caseRow.case);
   const definition = caseRow.case.workflowId ? await getWorkflowMetadata(db, input.companyId, caseRow.case.workflowId) : null;
   const workflow = definition ? { id: definition.id, name: definition.name } : null;
-  const [incoming] = await db.select({ handoff: caseHandoffs, fromAgentName: agents.name }).from(caseHandoffs)
+  const [incoming] = await db.select({ handoff: {
+    id: caseHandoffs.id, commentId: caseHandoffs.commentId, fromAgentId: caseHandoffs.fromAgentId,
+  }, fromAgentName: agents.name }).from(caseHandoffs)
     .leftJoin(agents, and(eq(agents.id, caseHandoffs.fromAgentId), eq(agents.companyId, caseHandoffs.companyId)))
     .where(and(eq(caseHandoffs.companyId, input.companyId), eq(caseHandoffs.caseId, caseRow.case.id),
       eq(caseHandoffs.version, caseRow.case.handoffVersion), eq(caseHandoffs.toAgentId, input.agentId),

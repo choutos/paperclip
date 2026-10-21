@@ -16,7 +16,8 @@ Endpoint: one reviewable PR with required checks. No merge or deployment request
 Deferred: workflow authoring UI, deletion/archive, import/export, role binding,
 graph validation, and Spec Kit integration.
 
-Status: implementation complete; final verification and PR preparation in progress.
+Status: implementation and live acceptance complete. Full-suite verification and
+review are tracked in https://github.com/paperclipai/paperclip/pull/17114.
 
 Implementation: schema/migration, definition REST service and optional native
 tools, transactional adoption with private prompt snapshots, bounded reads,
@@ -26,7 +27,8 @@ workflow-document reads; inline receipt coverage remains.
 
 Verification so far: real-database handoff tests, authenticated native-tool/API
 contract tests, 37 case/Audit UI tests, and arithmetic oracle calibration pass.
-Repository-wide typecheck and build pass. The full test suite is in progress.
+Repository-wide typecheck and build pass, including after a clean rebase onto
+master. Full-suite results are tracked in the PR.
 Token gates, migration checks, module boundaries and map structure checks pass. Earlier failed attempts
 were an incorrect assertion about conflict wording, missing fresh-worktree
 build dependencies, outdated API-schema assertions and generated inventories;
@@ -53,7 +55,7 @@ Runner contract checks exposed strict JSON-schema branches and an omitted
 public semantic catalog registration for the four tools. Both are corrected;
 all 144 affected catalog/discovery tests and 27 prompt/coverage tests pass.
 Generated projections were refreshed from a fresh TypeScript build. The
-repository-wide suite remains in progress.
+repository-wide suite uses the repository-supported isolated shard groups.
 
 Live acceptance passed in `reusable-workflows-api-final-2026-10-21`, using local
 code matching commit `a1d73b4652`: four actual Codex API runs, all nine durable
@@ -63,3 +65,19 @@ token usage but incomplete aggregate dollar accounting; it does not establish
 zero provider cost. Earlier campaigns remain failed and unchanged. The report
 is retained at `tests/runner-e2e/results/reusable-workflows-api-final-2026-10-21/dashboard.html`
 (ignored local evidence, not committed screenshots).
+
+Final verification retains the interrupted default serial run as incomplete.
+The replacement covers all 1,082 general server suites and 161 serialized suites
+without gaps or overlap, plus all three workspace groups. CI caught a missing
+workflow route-inventory registration; explicit route declarations and that
+registration now pass the OpenAPI/native-tool integration checks (49 tests).
+Case context selects only incoming-handoff metadata, avoiding reads of the
+private captured workflow prompt on each resume.
+
+The final context projection passes all 90 database handoff checks and server
+typecheck. CI also detected the changed shared instruction source in Copilot's
+pinned identity. Version 56 binds the new guidance, retains v55 decoding and
+historical fixtures, and passes 142 installation/sidecar checks. This is static
+compatibility evidence; live acceptance here covers native Codex. One local
+environment-route socket disconnect remains recorded; its separate 11-test
+rerun passed without changes to that unrelated route or test.

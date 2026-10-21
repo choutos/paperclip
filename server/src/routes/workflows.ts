@@ -24,20 +24,19 @@ export function workflowRoutes(db: Db) {
     const { prompt: _prompt, ...metadata } = await service.write(companyId, req.actor, req.body);
     res.status(201).json(metadata);
   });
-  router.route("/workflows/:id")
-    .all(async (req, _res, next) => {
-      await requireCasesEnabled(db);
-      const id = z.string().guid().parse(req.params.id);
-      const [row] = await db.select({ companyId: workflows.companyId }).from(workflows).where(eq(workflows.id, id));
-      if (!row || !hasCompanyAccess(req, row.companyId)) throw notFound("Workflow not found");
-      assertCompanyAccess(req, row.companyId);
-      _res.locals.workflowCompanyId = row.companyId;
-      next();
-    })
-    .get(async (req, res) => { res.json(await service.read(res.locals.workflowCompanyId, req.params.id as string)); })
-    .patch(validate(updateWorkflowSchema), async (req, res) => {
-      const { prompt: _prompt, ...metadata } = await service.write(res.locals.workflowCompanyId, req.actor, req.body, req.params.id as string);
-      res.json(metadata);
-    });
+  router.all("/workflows/:id", async (req, res, next) => {
+    await requireCasesEnabled(db);
+    const id = z.string().guid().parse(req.params.id);
+    const [row] = await db.select({ companyId: workflows.companyId }).from(workflows).where(eq(workflows.id, id));
+    if (!row || !hasCompanyAccess(req, row.companyId)) throw notFound("Workflow not found");
+    assertCompanyAccess(req, row.companyId);
+    res.locals.workflowCompanyId = row.companyId;
+    next();
+  });
+  router.get("/workflows/:id", async (req, res) => { res.json(await service.read(res.locals.workflowCompanyId, req.params.id as string)); });
+  router.patch("/workflows/:id", validate(updateWorkflowSchema), async (req, res) => {
+    const { prompt: _prompt, ...metadata } = await service.write(res.locals.workflowCompanyId, req.actor, req.body, req.params.id as string);
+    res.json(metadata);
+  });
   return router;
 }
