@@ -93,7 +93,7 @@ export function NewAgentSetup() {
   if (params.get("adapterType") === "muse" || params.get("runnerProvider") === "muse") return <ExternalAgentInviteDialog companyId={selectedCompanyId} initialPreset="muse" initialMuseName={params.get("name") ?? ""} onClose={() => navigate("/agents/all")} onBack={() => navigate("/agents/all")} />;
   return (
     <Setup
-      key={`${selectedCompanyId}:${params.get("name")}:${params.get("adapterType")}:${params.get("runnerProvider")}:${params.get("runner")}`}
+      key={`${selectedCompanyId}:${params.get("name")}:${params.get("adapterType")}:${params.get("runnerProvider") ?? "codex"}:${params.get("runner") ?? "auto"}`}
       companyId={selectedCompanyId}
       name={params.get("name") ?? ""}
       adapterType={params.get("adapterType") === "paperclip_runner" && ["codex", "claude", "opencode"].includes(params.get("runnerProvider") ?? "codex") ? params.get("runnerProvider") === "claude" ? "claude_local" : params.get("runnerProvider") === "opencode" ? "opencode_local" : "codex_local" : params.get("adapterType") ?? ""}
@@ -536,7 +536,7 @@ function Setup({
     creating.current = true;
     setError(null);
     navigate(`/agents/new?${new URLSearchParams({ name, adapterType, runnerProvider,
-      ...(runner !== "auto" ? { runner } : {}), setupAgentId: setupId.current })}`, { replace: true });
+      runner, setupAgentId: setupId.current })}`, { replace: true });
     const existing = agents.data ?? [];
     const leader = existing.find(agent => agent.role === "ceo" && agent.status !== "terminated");
     void agentsApi.create(companyId, {

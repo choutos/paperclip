@@ -1042,6 +1042,25 @@ describe("New agent setup", () => {
     if (runner === "auto") expect(api.hire.mock.calls[0][1]).not.toHaveProperty("runner");
   });
 
+  it("retains automatic OpenCode selection while the first draft request is in flight", async () => {
+    let release!: () => void;
+    const originalCreate = api.create.getMockImplementation()!;
+    api.create.mockImplementation(async (...args) => {
+      await new Promise<void>(resolve => { release = resolve; });
+      return originalCreate(...args);
+    });
+    await render("opencode_local");
+    const url = state.navigate.mock.calls[0][0] as string;
+    state.params = new URLSearchParams(url.split("?")[1]);
+    expect(state.params.get("runner")).toBe("auto");
+    await renderCurrentParams();
+    expect(api.create).toHaveBeenCalledOnce();
+    await act(async () => release());
+    await settle();
+    expect(api.create.mock.calls[0][1].runner).toBe("auto");
+    expect(api.create).toHaveBeenCalledOnce();
+  });
+
   it.each(["opencode_local", "paperclip_runner"])("resumes OpenCode's saved %s setup after a default change", async adapterType => {
     const id = "00000000-0000-4000-8000-000000000092";
     state.params = new URLSearchParams({ name: "OpenCode", adapterType: "opencode_local", setupAgentId: id });
