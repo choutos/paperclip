@@ -34,6 +34,7 @@ export const updateWorkflowAction = caseDataAction({
   id: "update_workflow", title: "Update workflow", order: 58, write: true, binding,
   description: "Edit a company-shared definition's name or prompt for future adoptions. Existing cases keep their task copy. To explicitly refresh a case, handoff_case with this workflowId (even when already current). Reuse the retry key with identical arguments after response loss in this run.",
   schema: { type: "object", additionalProperties: false, required: ["workflowId", "idempotencyKey"],
-    properties: { workflowId, idempotencyKey, name, prompt }, anyOf: [{ required: ["name"] }, { required: ["prompt"] }] },
+    properties: { workflowId, idempotencyKey, name, prompt },
+    anyOf: [{ properties: { name: {} }, required: ["name"] }, { properties: { prompt: {} }, required: ["prompt"] }] },
   example: { workflowId: "00000000-0000-4000-8000-000000000001", idempotencyKey: "research-citations", prompt: "Research the question and save cited findings before review." },
 });

@@ -3,12 +3,24 @@ import { describe, expect, it } from "vitest";
 import { paperclipSemanticAction } from "../catalog/semantic-action-catalog.js";
 import { paperclipSemanticActionNamespace } from "../semantic-tools/paperclip-discovery.js";
 import { createCaseAction, readCaseAction, updateCaseAction } from "./case-data.js";
+import { createWorkflowAction, listWorkflowsAction, readWorkflowAction, updateWorkflowAction } from "./workflows.js";
 
 const caseId = "00000000-0000-4000-8000-000000000001";
 const actions = [readCaseAction, updateCaseAction];
 
 describe("production case data contracts", () => {
   const ajv = new Ajv2020({ strict: true, allErrors: true, allowUnionTypes: true });
+
+  it.each([listWorkflowsAction, readWorkflowAction, createWorkflowAction, updateWorkflowAction])(
+    "$id has a strict company-scoped live and catalog contract", (action) => {
+      for (const schema of [action.live.descriptor.inputSchema, paperclipSemanticAction(action.id)!.inputSchema]) {
+        const validate = ajv.compile(schema);
+        expect(validate(action.examples.call.input), JSON.stringify(validate.errors)).toBe(true);
+        expect(validate({ ...action.examples.call.input, companyId: caseId })).toBe(false);
+        if (action.id === "update_workflow") expect(validate({ workflowId: caseId, idempotencyKey: "empty" })).toBe(false);
+      }
+    },
+  );
 
   it.each(actions.map(action => [action.id, action] as const))(
     "%s accepts its primary-case default and validates explicit scope on both live projections",

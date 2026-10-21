@@ -43,4 +43,14 @@ exactly four rows despite the valid fifth terminal row. The attempt was stopped
 with normal launcher cleanup and remains failed. The fixture now explicitly
 requires the terminal intent and its retained procedure revision; positive and
 negative oracle tests pass. A fresh single-attempt campaign verifies that fix.
-No complete live-provider result or PR readiness claimed yet.
+The terminal-aware API attempt passed all nine durable workflow checks and the
+case Work/history browser assertions. Its final chat-marker assertion failed:
+the existing presentation policy chooses the explicit terminal handoff comment
+over the later completion summary. The fixture now puts the marker in that
+authoritative visible comment and retains the earlier failure separately.
+
+Runner contract checks exposed strict JSON-schema branches and an omitted
+public semantic catalog registration for the four tools. Both are corrected;
+all 144 affected catalog/discovery tests and 27 prompt/coverage tests pass.
+Generated projections were refreshed from a fresh TypeScript build. The
+repository-wide suite and final bounded live campaign remain in progress.

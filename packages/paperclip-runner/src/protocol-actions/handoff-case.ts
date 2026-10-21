@@ -30,8 +30,9 @@ const agentInputSchema = {
       properties: { case: { type: "object", properties: { create: {} }, required: ["create"] } },
       required: ["case"],
     },
-    then: { oneOf: [{ properties: { workflowId: { type: "string", pattern: uuidPattern } }, required: ["workflowId"] }, { required: ["workflow_document_text"] }] },
-  }, { not: { required: ["workflowId", "workflow_document_text"] } }],
+    then: { oneOf: [{ properties: { workflowId: { type: "string", pattern: uuidPattern } }, required: ["workflowId"] },
+      { properties: { workflow_document_text: {} }, required: ["workflow_document_text"] }] },
+  }, { not: { properties: { workflowId: {}, workflow_document_text: {} }, required: ["workflowId", "workflow_document_text"] } }],
 } as const;
 const doneInputSchema = {
   type: "object", additionalProperties: false,
