@@ -53,4 +53,13 @@ Runner contract checks exposed strict JSON-schema branches and an omitted
 public semantic catalog registration for the four tools. Both are corrected;
 all 144 affected catalog/discovery tests and 27 prompt/coverage tests pass.
 Generated projections were refreshed from a fresh TypeScript build. The
-repository-wide suite and final bounded live campaign remain in progress.
+repository-wide suite remains in progress.
+
+Live acceptance passed in `reusable-workflows-api-final-2026-10-21`, using local
+code matching commit `a1d73b4652`: four actual Codex API runs, all nine durable
+checks, current Work summary, historical workflow/phase names, original task
+completion and visible terminal comment. Cleanup passed. The result reports
+token usage but incomplete aggregate dollar accounting; it does not establish
+zero provider cost. Earlier campaigns remain failed and unchanged. The report
+is retained at `tests/runner-e2e/results/reusable-workflows-api-final-2026-10-21/dashboard.html`
+(ignored local evidence, not committed screenshots).
