@@ -79,6 +79,8 @@ describe("production case data contracts", () => {
       expect(validate(withoutKickoff)).toBe(false);
       const { workflow_document_text: _workflow, ...withoutWorkflow } = input;
       expect(validate(withoutWorkflow)).toBe(false);
+      expect(validate({ ...withoutWorkflow, workflowId: caseId })).toBe(true);
+      expect(validate({ ...input, workflowId: caseId })).toBe(false);
       expect(validate({ ...input, workflow_document_text: "Implement and verify, then finish." })).toBe(true);
       expect(validate({ ...input, workflow_document_text: "# Workflow\n\n```mermaid\nstateDiagram-v2\n  triage --> implementation: ready\n```\n\nready: Triage saves validated facts and hands off to the implementation agent." })).toBe(true);
       const initialDocuments = [{ key: "brief", title: "Brief", body: "An objective" }];
@@ -96,7 +98,7 @@ describe("production case data contracts", () => {
   });
 
   it("keeps case facts separate from ordinary task-document tools", () => {
-    for (const operationId of ["create_case", "read_case", "update_case"] as const) expect(paperclipSemanticActionNamespace(operationId)).toBe("delegation");
+    for (const operationId of ["create_case", "read_case", "update_case", "list_workflows", "read_workflow", "create_workflow", "update_workflow"] as const) expect(paperclipSemanticActionNamespace(operationId)).toBe("delegation");
     expect(paperclipSemanticAction("read_case")?.effect).toBe("read");
     expect(paperclipSemanticAction("update_case")?.effect).toBe("write");
     expect(paperclipSemanticAction("create_case")?.effect).toBe("write");

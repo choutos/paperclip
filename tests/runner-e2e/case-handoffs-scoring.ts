@@ -12,8 +12,9 @@ export function caseHandoffRunFailure(runs: Row[]): string | undefined {
 export interface CaseHandoffObservation {
   nonce: string; companyId: string; taskId: string; caseId: string;
   agents: { triage: string; implementation: string; verification: string };
+  workflowIds: { a: string; b: string };
   issue: Row; caseRecord: Row; cases: Row[]; tasks: Row[]; handoffs: Row[]; runs: Row[];
-  documents: Record<string, Row>; handoffToolRunIds: string[]; pendingInteractions: number;
+  documents: Record<string, Row>; handoffToolRunIds: string[]; workflowReadRunIds: string[]; pendingInteractions: number;
 }
 export function hasNativeHandoffReceipt(events: Row[]): boolean {
   const valid = events.map(event => ({ event, envelope: event.payload?.prpEvent }))
@@ -45,6 +46,15 @@ export function gradeCaseHandoffs(input: CaseHandoffObservation) {
   const phases = ["triage", "implementation", "verification", "revision"];
   const agents = [input.agents.triage, input.agents.implementation, input.agents.verification, input.agents.implementation];
   const ordered = [...input.handoffs].sort((a, b) => a.version - b.version);
+  const workflowIds = [input.workflowIds.a, input.workflowIds.b, input.workflowIds.a, input.workflowIds.a];
+  add("reusable-workflow-movement", Boolean(input.workflowIds.a && input.workflowIds.b && input.workflowIds.a !== input.workflowIds.b)
+    && input.caseRecord.workflowId === input.workflowIds.a && ordered.length === 4 && ordered.every((handoff, index) =>
+      handoff.workflowTransition?.to.workflowId === workflowIds[index]
+      && handoff.workflowTransition?.from.workflowId === (workflowIds[index - 1] ?? null)
+      && typeof handoff.workflowTransition?.documentRevisionId === "string"),
+  "The same case adopts A → B → A and then preserves A, with effective document revisions in every transition.");
+  add("effective-procedure-read", input.runs.length >= 4 && input.runs.every(run => input.workflowReadRunIds.includes(run.id)),
+    "Every receiving run has an observed production read of the task's adopted workflow document.");
   add("one-primary-task", input.tasks.length === 1 && input.tasks[0]?.id === input.taskId && input.cases.length === 1
     && input.caseRecord.id === input.caseId && input.caseRecord.workIssueId === input.taskId && input.cases[0]?.workIssueId === input.taskId,
   "The public company lists and case detail retain exactly one workflow case and task.");
@@ -59,6 +69,7 @@ export function gradeCaseHandoffs(input: CaseHandoffObservation) {
     const document = input.documents[`phase-${phase}`];
     return saved?.nonce === input.nonce && saved.phase === phase && saved.caseId === input.caseId
       && saved.taskId === input.taskId && saved.handoffVersion === i + 1 && saved.result === 5
+      && saved.workflowMarker === `procedure-${i === 1 ? "B" : "A"}-${input.nonce}`
       && document?.createdByAgentId === agents[i] && document?.updatedByAgentId === agents[i];
   }), "Each recipient persisted its actual new phase/version and unchanged case/task identities.");
   const answer = body(input.documents.answer);

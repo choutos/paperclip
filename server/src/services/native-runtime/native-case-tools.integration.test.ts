@@ -102,6 +102,45 @@ describe("native case tools through authenticated production routes", () => {
     const events = await server.db.select().from(caseEvents).where(eq(caseEvents.caseId, f.record.id));
     expect(events.filter(event => event.kind === "fields_changed")).toHaveLength(1);
   });
+  it("authors, pages, reuses and protects workflows with generic APIs disabled", async () => {
+    const f = await fixture();
+    expect(f.authority.definitions().map(tool => tool.name)).toEqual(expect.arrayContaining([
+      "list_workflows", "read_workflow", "create_workflow", "update_workflow",
+    ]));
+    const prompt = "Reusable 🧾 instructions\n".repeat(2000);
+    const input = { idempotencyKey: "workflow-create", name: "Receipt procedure", prompt };
+    const created = await f.call("create_workflow", input) as { ok: boolean; data: { id: string } };
+    expect(created).toMatchObject({ ok: true, status: 201, data: { name: input.name } });
+    expect(created.data).not.toHaveProperty("prompt");
+    expect(await f.call("create_workflow", input)).toEqual(created);
+    expect(await f.call("list_workflows")).toMatchObject({ ok: true, data: [{ id: created.data.id, name: input.name }] });
+    let offsetBytes = 0, text = "";
+    for (let i = 0; ; i++) {
+      expect(i).toBeLessThan(20);
+      const page = await f.call("read_workflow", { workflowId: created.data.id, responseText: { offsetBytes, limitBytes: 8192 } }) as {
+        ok: boolean; data: string; responseText: { nextOffsetBytes: number | null };
+      };
+      expect(page.ok).toBe(true);
+      expect(Buffer.byteLength(page.data)).toBeLessThanOrEqual(8192);
+      text += page.data;
+      if (page.responseText.nextOffsetBytes === null) break;
+      offsetBytes = page.responseText.nextOffsetBytes;
+    }
+    expect(JSON.parse(text)).toMatchObject({ id: created.data.id, prompt });
+    const receipt = await f.call("create_case", { idempotencyKey: "reusable-kickoff", title: "Reusable receipt", caseType: "loose",
+      workflowId: created.data.id, kickoff: { toAgentId: f.agentId, phase: "custom phase", instructions: "Read workflow" } }) as { taskId: string; caseId: string };
+    expect((await documentService(server.db).getIssueDocumentByKey(receipt.taskId, "workflow"))?.body).toBe(prompt);
+    expect(await f.call("update_workflow", { workflowId: created.data.id, idempotencyKey: "workflow-edit", prompt: "Updated" })).toMatchObject({ ok: true });
+    expect((await documentService(server.db).getIssueDocumentByKey(receipt.taskId, "workflow"))?.body).toBe(prompt);
+    const foreign = await fixture();
+    expect(await foreign.call("read_workflow", { workflowId: created.data.id })).toMatchObject({ ok: false, status: 404 });
+    expect(await foreign.call("update_workflow", { workflowId: created.data.id, idempotencyKey: "foreign", name: "No" })).toMatchObject({ ok: false, status: 404 });
+    await server.db.update(heartbeatRuns).set({ resultJson: { executionCancellation: { state: "requested" } } }).where(eq(heartbeatRuns.id, f.runId));
+    expect(await f.call("update_workflow", { workflowId: created.data.id, idempotencyKey: "stopped-workflow", name: "No" })).toMatchObject({ ok: false, status: 403 });
+    await instanceSettingsService(server.db).updateExperimental({ enableCases: false });
+    try { await expect(foreign.call("list_workflows")).rejects.toThrow("Cases are disabled"); }
+    finally { await instanceSettingsService(server.db).updateExperimental({ enableCases: true }); }
+  });
   it("requires kickoff before any case, task, comment, document or wake side effect", async () => {
     const f = await fixture();
     const snapshot = async () => ({ ...await f.snapshot(),
@@ -123,6 +162,14 @@ describe("native case tools through authenticated production routes", () => {
       await expect(f.call("create_case", { ...input, kickoff, ...extra })).rejects.toThrow();
     }
     expect(await snapshot()).toEqual(before);
+  });
+  it("does not publish contained run instructions into company workflows", async () => {
+    const f = await fixture();
+    await server.db.update(heartbeatRuns).set({ contextSnapshot: { issueId: f.issueId, executionPolicy: {
+      trustPreset: "low_trust_review", authorizationPolicy: { trustBoundary: { mode: "low_trust_review", rootIssueId: f.issueId } },
+    } } }).where(eq(heartbeatRuns.id, f.runId));
+    expect(await f.call("create_workflow", { idempotencyKey: "contained", name: "Do not publish", prompt: "Untrusted instructions" }))
+      .toMatchObject({ ok: false, status: 403 });
   });
   it("requires explicit nonblank workflow text before native creation has any side effects", async () => {
     const f = await fixture();
