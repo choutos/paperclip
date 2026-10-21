@@ -475,12 +475,19 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const [overlay, setOverlay] = useState<AgentConfigOverlay>(emptyOverlay);
   const [environmentDraftDirty, setEnvironmentDraftDirty] = useState(false);
   const [environmentEditorKey, setEnvironmentEditorKey] = useState(0);
-  const [runnerUpgradePending, setRunnerUpgradePending] = useState(false);
-  const [runnerUpgradeError, setRunnerUpgradeError] = useState<string | null>(null);
-  const [runnerUpgraded, setRunnerUpgraded] = useState(false);
+  const [runnerUpgrade, setRunnerUpgrade] = useState<{
+    agentId: string;
+    status: "pending" | "upgraded" | "failed";
+    error?: string;
+  } | null>(null);
+  const currentRunnerUpgrade = !isCreate && runnerUpgrade?.agentId === props.agent.id ? runnerUpgrade : null;
+  const runnerUpgradePending = currentRunnerUpgrade?.status === "pending";
+  const runnerUpgraded = currentRunnerUpgrade?.status === "upgraded";
+  const runnerUpgradeError = currentRunnerUpgrade?.error;
   useEffect(() => {
-    setRunnerUpgradeError(null);
-    if (!isCreate && props.agent.adapterType !== "paperclip_runner") setRunnerUpgraded(false);
+    if (!isCreate && props.agent.adapterType !== "paperclip_runner") {
+      setRunnerUpgrade(current => current?.agentId === props.agent.id ? null : current);
+    }
   }, [isCreate, !isCreate ? props.agent.id : undefined, !isCreate ? props.agent.adapterType : undefined]);
   const agentRef = useRef<Agent | null>(null);
   // The overlay snapshot a background account-binding save persisted. The form
@@ -636,19 +643,19 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     && runnerAvailability?.defaultRunner === "paperclip";
   const upgradeRunner = async () => {
     if (isCreate || runnerUpgradePending) return;
-    setRunnerUpgradePending(true);
-    setRunnerUpgradeError(null);
-    const flushedEnv = flushEnvironmentDraft();
-    const nextOverlay = flushedEnv
-      ? { ...overlay, adapterConfig: { ...overlay.adapterConfig, env: flushedEnv } }
-      : overlay;
+    const agentId = props.agent.id;
+    setRunnerUpgrade({ agentId, status: "pending" });
     try {
+      const flushedEnv = flushEnvironmentDraft();
+      const nextOverlay = flushedEnv
+        ? { ...overlay, adapterConfig: { ...overlay.adapterConfig, env: flushedEnv } }
+        : overlay;
       await props.onSave({ ...buildAgentUpdatePatch(props.agent, nextOverlay), runner: "paperclip" });
-      setRunnerUpgraded(true);
+      setRunnerUpgrade(current => current?.agentId === agentId ? { agentId, status: "upgraded" } : current);
     } catch (error) {
-      setRunnerUpgradeError(error instanceof Error ? error.message : "Could not upgrade this agent. Try again.");
-    } finally {
-      setRunnerUpgradePending(false);
+      setRunnerUpgrade(current => current?.agentId === agentId ? {
+        agentId, status: "failed", error: error instanceof Error ? error.message : "Could not upgrade this agent. Try again.",
+      } : current);
     }
   };
   const runner: AgentRunnerChoice = isCreate ? props.values.runner ?? "auto" : overlay.runner ?? agentRunner(adapterType);

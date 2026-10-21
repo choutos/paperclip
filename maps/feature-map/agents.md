@@ -129,6 +129,10 @@ rejected incompatible setting, repair it, and retry. Verify a real task before
 and after migration, including its output, preserved history, and fresh session.
 The notice must stay absent for native agents, other harnesses, and unsupported
 targets. Discovery failure must not imply that an upgrade is available.
+Navigate to another agent while an upgrade is pending. Its result must stay with
+the original agent, without showing success on the new page or redirecting back.
+Focused coverage: [save receipt](../../ui/src/pages/AgentRunnerUpgrade.test.tsx)
+and [configuration form](../../ui/src/components/AgentConfigForm.render.test.tsx).
 
 Storybook: [Runner upgrade](../../ui/storybook/stories/agents/codex-runner/upgrade.stories.tsx)
 mounts the production page and shell with mutable HTTP fixtures for both harnesses,
