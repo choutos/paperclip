@@ -1,6 +1,6 @@
 import { COPILOT_MODEL_DISCOVERY_QUERY_OPTIONS } from "@/lib/copilot-task-model-catalog";
 import { useConnectionModels } from "./ai-connections/useConnectionModels";
-import { agentHarnessType, agentRunner, type AgentRunnerChoice } from "@paperclipai/shared";
+import { agentHarnessType, agentRunner, paperclipRunnerProfileForHarness, type AgentRunnerChoice } from "@paperclipai/shared";
 import { adaptersApi } from "../api/adapters";
 import { AgentRunnerSelect } from "./AgentRunnerSelect";
 import { aiRoutingHarness } from "@paperclipai/shared";
@@ -607,7 +607,8 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const effectiveConfig = isCreate ? props.values.adapterSchemaValues ?? {} : { ...config, ...overlay.adapterConfig };
   const harnessType = agentHarnessType(adapterType, effectiveConfig);
   const isCodexHarness = harnessType === "codex_local";
-  const isRunnerHarness = isCodexHarness || harnessType === "claude_local";
+  const runnerProfile = paperclipRunnerProfileForHarness(harnessType);
+  const isRunnerHarness = Boolean(runnerProfile);
   const rawCurrentDefaultEnvironmentId = isCreate
     ? props.values.defaultEnvironmentId ?? ""
     : eff("identity", "defaultEnvironmentId", props.agent.defaultEnvironmentId ?? "");
@@ -627,10 +628,10 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     ? (runner === "paperclip" || (runner === "auto" && runnerAvailability?.defaultRunner === "paperclip") ? "paperclip_runner" : harnessType)
     : adapterType;
   useEffect(() => {
-    if (props.mode !== "create" || harnessType !== "claude_local") return;
+    if (props.mode !== "create" || !isRunnerHarness) return;
     const resolvedRunner = runner === "auto" ? runnerAvailability?.defaultRunner : runner;
     if (props.values.resolvedRunner !== resolvedRunner) props.onChange({ resolvedRunner });
-  }, [props.mode, harnessType, runner, runnerAvailability?.defaultRunner,
+  }, [props.mode, harnessType, isRunnerHarness, runner, runnerAvailability?.defaultRunner,
     isCreate ? props.values.resolvedRunner : undefined, isCreate ? props.onChange : undefined]);
   const getCapabilities = useAdapterCapabilities();
   const adapterCaps = getCapabilities(isRunnerHarness ? harnessType : adapterType);
@@ -995,9 +996,9 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     isCreate,
     adapterType: fieldsAdapterType,
     hideRunnerHarness: isRunnerHarness,
-    values: isCreate ? { ...props.values, ...(harnessType === "claude_local" && fieldsAdapterType === "paperclip_runner" ? { adapterSchemaValues: { ...props.values.adapterSchemaValues, provider: "acpx", acpxAgent: "claude" } } : {}) } : null,
+    values: isCreate ? { ...props.values, ...(runnerProfile && fieldsAdapterType === "paperclip_runner" ? { adapterSchemaValues: { ...props.values.adapterSchemaValues, ...runnerProfile } } : {}) } : null,
     set: isCreate ? (patch: Partial<CreateConfigValues>) => props.onChange(patch) : null,
-    config: harnessType === "claude_local" && fieldsAdapterType === "paperclip_runner" ? { ...config, provider: "acpx", acpxAgent: "claude" } : config,
+    config: runnerProfile && fieldsAdapterType === "paperclip_runner" ? { ...config, ...runnerProfile } : config,
     eff: eff as <T>(group: "adapterConfig", field: string, original: T) => T,
     // Harness transitions supply the new harness's default model. Resolve
     // user-selected model IDs in ModelDropdown, not through the previous
@@ -1700,7 +1701,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                     setOverlay((prev) => ({
                       ...prev,
                       adapterType: t,
-                      runner: ["codex_local", "claude_local"].includes(t) ? "auto" : undefined,
+                      runner: ["codex_local", "claude_local", "opencode_local"].includes(t) ? "auto" : undefined,
                       adapterConfig: {
                         model:
                           t === "gemini_local"

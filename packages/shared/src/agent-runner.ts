@@ -6,9 +6,10 @@ export interface AgentRunnerAvailability {
   defaultRunner: AgentRunner;
 }
 
-export function paperclipRunnerProfileForHarness(harness: string): { provider: "codex" } | { provider: "acpx"; acpxAgent: "claude" } | undefined {
+export function paperclipRunnerProfileForHarness(harness: string): { provider: "codex" | "opencode" } | { provider: "acpx"; acpxAgent: "claude" } | undefined {
   if (harness === "codex_local") return { provider: "codex" };
   if (harness === "claude_local") return { provider: "acpx", acpxAgent: "claude" };
+  if (harness === "opencode_local") return { provider: "opencode" };
   return undefined;
 }
 

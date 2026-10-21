@@ -762,9 +762,40 @@ describe("agent routes adapter validation", () => {
     expect(mockAgentService.create).not.toHaveBeenCalled();
   });
 
+  it.each(["auto", "legacy"] as const)("creates OpenCode through the public route with %s selection and the experimental flag off", async runner => {
+    const selection = await import("../services/agent-runner-selection.js");
+    vi.spyOn(selection, "resolveNewAgentRunnerForCompany").mockImplementation(async (_db, _companyId, input) =>
+      selection.resolveNewAgentRunner({ ...input, target: { driver: "local", platform: "darwin", architecture: "arm64" } }));
+    const app = await createApp();
+    const model = "openrouter/anthropic/claude-sonnet-4.6";
+    const response = await requestApp(app, baseUrl => request(baseUrl).post("/api/companies/company-1/agents").send({ name: "OpenCode", adapterType: "opencode_local", runner, adapterConfig: { model } }));
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
+    expect(mockAgentService.create.mock.calls.at(-1)?.[1]).toMatchObject({ adapterType: runner === "legacy" ? "opencode_local" : "paperclip_runner", adapterConfig: runner === "legacy" ? { model } : { provider: "opencode", model, opencodePermissionMode: "allow" } });
+  });
+
+  it("allows model-free OpenCode only as an inactive setup draft", async () => {
+    const selection = await import("../services/agent-runner-selection.js");
+    vi.spyOn(selection, "resolveNewAgentRunnerForCompany").mockImplementation(async (_db, _companyId, input) =>
+      selection.resolveNewAgentRunner({ ...input, target: { driver: "local", platform: "darwin", architecture: "arm64" } }));
+    const originalCreate = mockAgentService.create.getMockImplementation()!;
+    mockAgentService.create.mockImplementation(async (...args) => ({ ...await originalCreate(...args), lifecycleHolds: ["setup"] }));
+    const app = await createApp();
+    const input = { name: "OpenCode draft", adapterType: "opencode_local", adapterConfig: {} };
+    const draft = await requestApp(app, baseUrl => request(baseUrl).post("/api/companies/company-1/agents")
+      .send({ ...input, setupId: "00000000-0000-4000-8000-000000000092" }));
+    expect(draft.status, JSON.stringify(draft.body)).toBe(201);
+    expect(mockAgentService.create.mock.calls.at(-1)?.[1]).toMatchObject({ adapterType: "paperclip_runner", adapterConfig: { provider: "opencode", model: "" } });
+    expect(mockAgentService.create.mock.calls.at(-1)?.[2]).toMatchObject({ setupOnly: true, runnerResolved: true });
+    mockAgentService.create.mockClear();
+    const active = await requestApp(app, baseUrl => request(baseUrl).post("/api/companies/company-1/agents")
+      .send({ ...input, setupOnly: true }));
+    expect(active.status).toBe(422);
+    expect(mockAgentService.create).not.toHaveBeenCalled();
+  });
+
   it("keeps other native provider selection behind its existing flag", async () => {
     const app = await createApp();
-    const response = await requestApp(app, baseUrl => request(baseUrl).post("/api/companies/company-1/agents").send({ name: "Native OpenCode", adapterType: "paperclip_runner", adapterConfig: { provider: "opencode", model: "openrouter/deepseek/deepseek-v4-flash-0731" } }));
+    const response = await requestApp(app, baseUrl => request(baseUrl).post("/api/companies/company-1/agents").send({ name: "Native Pi", adapterType: "paperclip_runner", adapterConfig: { provider: "acpx", acpxAgent: "pi", model: "openrouter/deepseek/deepseek-v4-flash-0731" } }));
     expect(response.status).toBe(422);
     expect(response.body.details).toMatchObject({ code: "paperclip_runner_rollout_disabled" });
   });

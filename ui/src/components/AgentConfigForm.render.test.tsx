@@ -814,7 +814,11 @@ describe("AgentConfigForm environment selector", () => {
     mockInstanceSettingsApi.getExperimental.mockResolvedValue({ enableNativeRunner: false });
     const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig }, { showAdapterTypeField: true });
     roots.push(result.root);
-    expect(result.container.querySelector('[aria-label="Runner"]')).toBeNull();
+    if (adapterConfig.provider === "opencode") {
+      expect(result.container.querySelector('[aria-label="Harness"]')?.textContent).toContain("OpenCode");
+      await clickByText(result.container, "Advanced");
+      expect(result.container.querySelector('[aria-label="Runner"]')?.textContent).toContain("Paperclip Runner");
+    } else expect(result.container.querySelector('[aria-label="Runner"]')).toBeNull();
     await act(async () => setInputValue(result.container.querySelector<HTMLInputElement>('[placeholder="Agent name"]')!, "Renamed native agent"));
     await flushReact();
     await clickByText(result.container, "Save");
@@ -976,10 +980,9 @@ describe("AgentConfigForm environment selector", () => {
   });
 
   it.each([
-    ["Codex", "codex", undefined, DEFAULT_CODEX_LOCAL_MODEL],
-    ["ACP agents", "acpx", "claude", "claude-opus-5-5"],
-    ["Claude Managed", "claude_managed", undefined, "claude-sonnet-5"],
-  ])("saves the %s harness default without the previous OpenCode model prefix", async (label, provider, acpxAgent, model) => {
+    ["Codex", "codex_local"],
+    ["Claude Code", "claude_local"],
+  ])("clears OpenCode model settings when choosing %s so the server can apply its default", async (_label, adapterType) => {
     const accountList = vi.spyOn(aiConnectionsApi, "list").mockResolvedValue({
       currentUserId: "you",
       canManageConnections: true,
@@ -990,23 +993,20 @@ describe("AgentConfigForm environment selector", () => {
         adapterType: "paperclip_runner",
         adapterConfig: { provider: "opencode", model: "openrouter/anthropic/claude-sonnet-4.6" },
         runtimeConfig: { aiConnection: { mode: "responsible_user", provider: "openrouter", method: "api_key" } },
-      });
+      }, { showAdapterTypeField: true });
       roots.push(result.root);
-      await act(async () => {
-        result.container.querySelector('[aria-label="Harness"]')!
-          .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      });
+      await clickElement(result.container.querySelector('[aria-label="Harness"]'));
       await flushReact();
-      const option = [...document.querySelectorAll<HTMLElement>('[role="option"]')]
-        .find(element => element.textContent === label)!;
+      const option = document.querySelector<HTMLElement>(`[role="option"][data-value="${adapterType}"]`);
       expect(option).toBeTruthy();
-      await act(async () => {
-        option.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      });
+      await clickElement(option);
       await flushReact();
       await clickByText(result.container, "Save");
       expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({
-        adapterConfig: expect.objectContaining({ provider, model, ...(acpxAgent ? { acpxAgent } : {}) }),
+        adapterType,
+        runner: "auto",
+        replaceAdapterConfig: true,
+        adapterConfig: expect.objectContaining({ model: "" }),
       }));
     } finally {
       accountList.mockRestore();

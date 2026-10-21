@@ -1934,7 +1934,8 @@ agent conversion are outside this playbook.
 ## Paperclip Runner Adapter Conversion
 
 Paperclip Runner offers native Codex, OpenCode, and **ACPX Claude**. New
-Claude Code agents default to ACPX Claude on Apple Silicon, Intel Mac, Linux x64
+Claude Code agents default to ACPX Claude, and new OpenCode agents default to
+native OpenCode, on Apple Silicon, Intel Mac, Linux x64
 and Linux ARM64 with supported glibc. Unsupported or unqualified targets retain
 Legacy. Darwin SSH keeps an automatic Legacy default; explicit native execution
 requires matching remote assets. The runner override is in Advanced. Ordinary Claude models default to `claude-opus-5-5`; explicit models
@@ -1944,8 +1945,17 @@ and instructions, and resets execution sessions while retaining run history.
 Other adapters require an explicit provider choice. Legacy ACPX Codex agent
 settings normalize to native Codex on configuration updates and before fresh
 runs; immutable run descriptors remain readable. The **Paperclip Runner**
-experimental setting applies to other native providers. Native Codex and ACPX
-Claude do not require it. Company access checks still apply.
+experimental setting applies to other native providers. Native Codex, OpenCode,
+and ACPX Claude do not require it. Company access checks still apply.
+
+OpenCode requires an explicit `provider/model` before testing or finishing setup.
+An inactive setup draft can be saved before choosing a model. Automatic native
+selection uses `allow` permissions and a `per_turn` lifecycle. Native `ask` and
+`deny` policies remain available in agent configuration. Legacy custom commands,
+extra arguments, model variants, and inherited permission rules require the
+Legacy runner; incompatible settings return remediation instead of being ignored.
+Saved OpenCode agents keep their runner and runtime policies. Pi defaults are
+unchanged.
 
 Agent configuration uses the same section layout across adapters: model and
 provider belong to **Adapter**, environment variables have their own section,
