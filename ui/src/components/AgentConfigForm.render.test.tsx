@@ -717,6 +717,59 @@ describe("AgentConfigForm environment selector", () => {
     expect(result.onSave).toHaveBeenCalledWith({ name: "Renamed Cody" });
   });
 
+  it.each(["codex_local", "claude_local"])("upgrades a saved %s in one click with pending edits", async adapterType => {
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: adapterType, supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    const result = await renderForm([], { adapterType, adapterConfig: { model: "existing-model", effort: "high" } });
+    roots.push(result.root);
+    expect(result.container.textContent).toContain("Upgrade to Paperclip Runner");
+    await act(async () => setInputValue(result.container.querySelector<HTMLInputElement>('[placeholder="Agent name"]')!, "Renamed agent"));
+    await flushReact();
+    await clickByText(result.container, "Upgrade runner");
+    expect(result.onSave).toHaveBeenCalledWith({ name: "Renamed agent", runner: "paperclip" });
+  });
+
+  it.each(["paperclip_runner", "gemini_local"])("does not offer an upgrade for %s", async adapterType => {
+    const result = await renderForm([], { adapterType });
+    roots.push(result.root);
+    expect(result.container.textContent).not.toContain("Upgrade runner");
+  });
+
+  it("includes an uncommitted environment variable draft in an upgrade", async () => {
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    const result = await renderForm([], { adapterConfig: { model: "gpt-5.4" } }, { environmentVariablesPlacement: "configuration" });
+    roots.push(result.root);
+    await clickByText(result.container, "Add variable");
+    await act(async () => {
+      setInputValue(result.container.querySelector<HTMLInputElement>('input[aria-label="Variable name"]')!, "MIGRATION_MARKER");
+      setInputValue(result.container.querySelector<HTMLInputElement>('input[aria-label="Variable value"]')!, "kept");
+    });
+    await flushReact();
+    await clickByText(result.container, "Upgrade runner");
+    expect(result.onSave).toHaveBeenCalledWith(expect.objectContaining({ runner: "paperclip", replaceAdapterConfig: true,
+      adapterConfig: { model: "gpt-5.4", env: { MIGRATION_MARKER: { type: "plain", value: "kept" } } },
+    }));
+  });
+
+  it("keeps failed upgrades editable and allows retry", async () => {
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy", "paperclip"], defaultRunner: "paperclip" }]);
+    const result = await renderForm([]);
+    roots.push(result.root);
+    result.onSave.mockRejectedValueOnce(new Error("Paperclip Runner cannot honor these settings: extraArgs."));
+    await clickByText(result.container, "Upgrade runner");
+    expect(result.container.querySelector('[role="alert"]')?.textContent).toContain("extraArgs");
+    expect(result.onSave).toHaveBeenLastCalledWith({ runner: "paperclip" });
+    await clickByText(result.container, "Upgrade runner");
+    expect(result.onSave).toHaveBeenCalledTimes(2);
+    expect(result.container.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("does not offer an upgrade when the target only supports Legacy", async () => {
+    mockAdaptersApi.list.mockResolvedValueOnce([{ type: "codex_local", supportedRunners: ["legacy"], defaultRunner: "legacy" }]);
+    const result = await renderForm([]);
+    roots.push(result.root);
+    expect(result.container.textContent).not.toContain("Upgrade runner");
+  });
+
   it.each(["codex", "claude"].flatMap(harness => ["modelReasoningEffort", "reasoningEffort", "effort"].map(key => ({ harness, key }))))("hydrates saved effort and clears explicit Auto for $harness ($key)", async ({ harness, key }) => {
     const profile = harness === "codex" ? { provider: "codex", model: "gpt-5.6-sol" } : { provider: "acpx", acpxAgent: "claude", model: "claude-opus-5-5" };
     const result = await renderForm([], { adapterType: "paperclip_runner", adapterConfig: { ...profile, [key]: "high" } });

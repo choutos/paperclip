@@ -910,6 +910,43 @@ describe("agent routes adapter validation", () => {
     expect(mockAgentService.update.mock.calls.at(-1)?.[1]).toMatchObject({ adapterConfig: { provider: "codex" } });
   });
 
+  it.each(["codex_local", "claude_local"])("upgrades an existing %s through runner selection with its saved settings", async adapterType => {
+    const existing = await mockAgentService.getById();
+    const env = { MIGRATION_MARKER: { type: "plain", value: "keep" } };
+    const model = adapterType === "claude_local" ? "claude-sonnet-4-6" : "gpt-5.4";
+    mockAgentService.getById.mockResolvedValue({ ...existing, adapterType,
+      adapterConfig: { model, effort: "medium", env, promptTemplate: "Keep these instructions", timeoutSec: 180 },
+    });
+    const app = await createApp();
+    const res = await requestApp(app, baseUrl => request(baseUrl)
+      .patch("/api/agents/11111111-1111-4111-8111-111111111111").send({ runner: "paperclip" }));
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    expect(mockAgentService.update).toHaveBeenCalledWith(existing.id, expect.objectContaining({
+      adapterType: "paperclip_runner",
+      adapterConfig: expect.objectContaining({ model, modelReasoningEffort: "medium", env,
+        promptTemplate: "Keep these instructions", timeoutSec: 180,
+        ...(adapterType === "claude_local" ? { provider: "acpx", acpxAgent: "claude" } : { provider: "codex" }),
+      }),
+    }), expect.objectContaining({ recordRevision: expect.objectContaining({ source: "patch" }) }));
+    const patch = mockAgentService.update.mock.calls[0][1];
+    expect(patch).not.toHaveProperty("runner");
+    expect(patch.adapterConfig).not.toHaveProperty("effort");
+    expect(patch).not.toHaveProperty("runtimeConfig");
+    expect(mockLogActivity).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ action: "agent.updated", entityId: existing.id }));
+  });
+
+  it("leaves a legacy agent unchanged when upgrade settings are incompatible", async () => {
+    const existing = await mockAgentService.getById();
+    mockAgentService.getById.mockResolvedValue({ ...existing, adapterConfig: { model: "gpt-5.4", extraArgs: ["--search"] } });
+    const app = await createApp();
+    const res = await requestApp(app, baseUrl => request(baseUrl)
+      .patch("/api/agents/11111111-1111-4111-8111-111111111111").send({ runner: "paperclip" }));
+    expect(res.status, JSON.stringify(res.body)).toBe(422);
+    expect(res.body.details).toMatchObject({ code: "agent_runner_config_incompatible", fields: ["extraArgs"] });
+    expect(mockAgentService.update).not.toHaveBeenCalled();
+    expect(mockLogActivity).not.toHaveBeenCalled();
+  });
+
   it("normalizes legacy skills and permissions when switching to paperclip_runner", async () => {
     mockInstanceSettingsService.getExperimental.mockResolvedValue({ enableNativeRunner: true });
     const existing = await mockAgentService.getById();
