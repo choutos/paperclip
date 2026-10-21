@@ -27,15 +27,18 @@ function valid(): CaseHandoffObservation {
   const targets = [agents.triage, agents.implementation, agents.verification, agents.implementation];
   const phases = ["triage", "implementation", "verification", "revision"];
   const issue = { id: "task", status: "done", assigneeAgentId: agents.implementation };
-  const caseRecord = { id: "case", workIssueId: "task", phase: "revision", handoffVersion: 4, pendingHandoff: null, workflowId: "workflow-a" };
+  const caseRecord = { id: "case", workIssueId: "task", phase: "done", handoffVersion: 5, pendingHandoff: null, workflowId: "workflow-a" };
   return { nonce: "nonce", companyId: "company", taskId: "task", caseId: "case", agents, workflowIds: { a: "workflow-a", b: "workflow-b" }, issue, caseRecord,
     tasks: [issue], cases: [caseRecord], pendingInteractions: 0,
-    handoffs: phases.map((phase, index) => ({ id: `handoff-${index}`, caseId: "case", issueId: "task", version: index + 1, phase,
+    handoffs: [...phases.map((phase, index) => ({ id: `handoff-${index}`, caseId: "case", issueId: "task", version: index + 1, phase,
       toAgentId: targets[index], fromAgentId: targets[index - 1] ?? null, sourceRunId: index ? `run-${index - 1}` : null, state: "delivered",
       workflowTransition: { from: { workflowId: index === 0 ? null : index === 2 ? "workflow-b" : "workflow-a" },
         to: { workflowId: index === 1 ? "workflow-b" : "workflow-a" }, documentRevisionId: `rev-${index}` } })),
+      { id: "terminal", caseId: "case", issueId: "task", version: 5, phase: "done", destinationKind: "done", state: "completed",
+        fromAgentId: agents.implementation, toAgentId: null, sourceRunId: "run-3", workflowTransition: {
+          from: { workflowId: "workflow-a" }, to: { workflowId: "workflow-a" }, documentRevisionId: "rev-3" } }],
     runs: targets.map((agentId, index) => ({ id: `run-${index}`, agentId, companyId: "company", nativeIssueId: "task", runtimeMode: "native", status: "succeeded" })),
-    handoffToolRunIds: ["run-0", "run-1", "run-2"],
+    handoffToolRunIds: ["run-0", "run-1", "run-2", "run-3"],
     workflowReadRunIds: ["run-0", "run-1", "run-2", "run-3"],
     documents: Object.fromEntries([
       ["answer", { body: JSON.stringify({ nonce: "nonce", a: 2, b: 3, result: 5, verified: true }), createdByAgentId: agents.implementation, updatedByAgentId: agents.implementation }],
@@ -89,6 +92,9 @@ describe("same-task case handoff Product E2E", () => {
       (o: CaseHandoffObservation) => { o.runs.push({ id: "unaccounted" }); },
       (o: CaseHandoffObservation) => { o.pendingInteractions = 1; },
       (o: CaseHandoffObservation) => { o.handoffs[1]!.workflowTransition.to.workflowId = "workflow-a"; },
+      (o: CaseHandoffObservation) => { o.handoffs.pop(); },
+      (o: CaseHandoffObservation) => { o.handoffs[4]!.state = "awaiting_completion"; },
+      (o: CaseHandoffObservation) => { o.handoffs[4]!.workflowTransition.documentRevisionId = "different-revision"; },
       (o: CaseHandoffObservation) => { o.documents["phase-implementation"]!.body = o.documents["phase-triage"]!.body; },
       (o: CaseHandoffObservation) => { o.documents["phase-verification"]!.updatedByAgentId = o.agents.implementation; },
     ]) {

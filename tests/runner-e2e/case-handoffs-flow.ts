@@ -55,7 +55,7 @@ export async function runCaseHandoffsFlow(input: {
         caseRecord: { id: caseRecord.id, workflowId: caseRecord.workflowId, workIssueId: caseRecord.workIssueId, phase: caseRecord.phase, handoffVersion: caseRecord.handoffVersion, pendingHandoff: caseRecord.pendingHandoff ? { id: caseRecord.pendingHandoff.id, state: caseRecord.pendingHandoff.state, lastErrorCode: caseRecord.pendingHandoff.lastErrorCode } : null },
         cases: records.map(row => ({ id: row.id, workIssueId: row.workIssueId })), tasks: tasks.map(row => ({ id: row.id, status: row.status })),
         handoffs: handoffs.map(row => ({ id: row.id, caseId: row.caseId, issueId: row.issueId, version: row.version, phase: row.phase,
-          state: row.state, sourceRunId: row.sourceRunId, fromAgentId: row.fromAgentId, toAgentId: row.toAgentId, lastErrorCode: row.lastErrorCode, workflowTransition: row.workflowTransition })),
+          state: row.state, destinationKind: row.destinationKind, sourceRunId: row.sourceRunId, fromAgentId: row.fromAgentId, toAgentId: row.toAgentId, lastErrorCode: row.lastErrorCode, workflowTransition: row.workflowTransition })),
         runs: runs.map(row => ({ id: row.id, companyId: row.companyId, issueId: row.issueId, nativeIssueId: row.nativeIssueId,
           agentId: row.agentId, status: row.status, runtimeMode: row.runtimeMode })),
       }, checks,
@@ -97,7 +97,7 @@ export async function runCaseHandoffsFlow(input: {
     await pollUntil({ label: "same-task case handoff roundtrip", deadlineAt: input.deadlineAt, intervalMs: 1000,
       load: async () => { await refresh(); await save("running"); return { issue, runs, caseRecord, handoffs }; },
       accept: state => state.issue?.status === "done" && state.runs.length >= 4 && state.runs.every(run => run.status === "succeeded")
-        && state.handoffs.length === 4 && state.handoffs.every(handoff => handoff.state === "delivered"),
+        && state.caseRecord !== null && !state.caseRecord.pendingHandoff,
       reject: state => state.runs.length > CASE_HANDOFF_MAX_TURNS ? "Provider turn cap exceeded"
         : caseHandoffRunFailure(state.runs)
           ?? (state.handoffs.some(handoff => handoff.state === "cancelled") ? "A workflow handoff was cancelled" : undefined),
@@ -116,10 +116,10 @@ export async function runCaseHandoffsFlow(input: {
     await page.reload();
     const work = page.getByRole("region", { name: "Case work", exact: true });
     await expect(work).toBeVisible();
-    await expect(work.getByText("revision", { exact: true })).toBeVisible();
+    await expect(work.getByText("done", { exact: true })).toBeVisible();
     await expect(work.getByText(`Research ${nonce}`, { exact: true })).toBeVisible();
     const history = page.getByRole("region", { name: "Case handoffs", exact: true });
-    await expect(history.locator(":scope > ol > li")).toHaveCount(4);
+    await expect(history.locator(":scope > ol > li")).toHaveCount(5);
     await history.locator("summary").filter({ has: page.getByText("verification", { exact: true }) }).click();
     await expect(history).toContainText("verification");
     await expect(history).toContainText(`Delivery ${nonce} · implementation → Research ${nonce} · verification`);

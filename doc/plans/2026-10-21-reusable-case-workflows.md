@@ -37,4 +37,10 @@ then the first provider run failed with HTTP 429 (`responseTooManyFailedAttempts
 That failure is retained separately. An explicitly authorized API-key attempt
 uses the same arithmetic procedure, oracle and single-attempt run limits in a
 fresh isolated campaign. Both arithmetic credential modes are now selectable.
+The first API attempt completed four successful provider runs, A → B → A, and
+normal terminal case completion. Its old four-handoff oracle kept waiting for
+exactly four rows despite the valid fifth terminal row. The attempt was stopped
+with normal launcher cleanup and remains failed. The fixture now explicitly
+requires the terminal intent and its retained procedure revision; positive and
+negative oracle tests pass. A fresh single-attempt campaign verifies that fix.
 No complete live-provider result or PR readiness claimed yet.

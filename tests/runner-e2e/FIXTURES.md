@@ -1001,3 +1001,8 @@ Case Work and expanded history show the names and arbitrary phases. This changes
 the definition/grader digest; historical passes do not qualify this extension.
 The receipt cells continue exercising inline kickoff compatibility. Provider-turn,
 timeout, credentials and cleanup bounds are unchanged.
+
+The arithmetic journey records four delivered agent handoffs and one completed
+terminal intent. The final case is `done` at handoff version 5, while the same
+four provider work runs and unchanged workflow document revision finish the task.
+The oracle rejects a missing or pending terminal intent.
