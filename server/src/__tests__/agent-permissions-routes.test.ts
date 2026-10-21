@@ -129,6 +129,10 @@ const mockInstanceSettingsService = vi.hoisted(() => ({
 const mockRunSshCommand = vi.hoisted(() => vi.fn());
 
 function registerModuleMocks() {
+  vi.doMock("../lib/agent-runner-platform.js", () => ({
+    localAgentRunnerTarget: () => ({ driver: "local", platform: "linux", architecture: "x64", libc: "glibc", glibcVersion: "2.39" }),
+    localPaperclipRunnerSupported: () => true,
+  }));
   vi.doMock("@paperclipai/adapter-utils/ssh", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@paperclipai/adapter-utils/ssh")>()),
     runSshCommand: mockRunSshCommand,
