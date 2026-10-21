@@ -1,8 +1,9 @@
 import { and, asc, eq } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { workflows, type Db } from "@paperclipai/db";
 import type { z } from "zod";
 import type { createWorkflowSchema, updateWorkflowSchema } from "@paperclipai/shared";
-import { forbidden, notFound } from "../errors.js";
+import { conflict, forbidden, notFound } from "../errors.js";
 import { instanceSettingsService } from "./instance-settings.js";
 import { authorizeCaseCreation } from "./case-mutation-authorization.js";
 import type { AuthorizationActor } from "./authorization.js";
@@ -32,7 +33,12 @@ export function workflowService(db: Db) {
       createdAt: workflows.createdAt, updatedAt: workflows.updatedAt,
     }).from(workflows).where(eq(workflows.companyId, companyId)).orderBy(asc(workflows.name), asc(workflows.id))
       .limit(options.limit).offset(options.offset),
-    read: (companyId: string, id: string) => getWorkflow(db, companyId, id),
+    async read(companyId: string, id: string, expectedSnapshot?: string) {
+      const workflow = await getWorkflow(db, companyId, id);
+      const snapshot = createHash("sha256").update(JSON.stringify(workflow)).digest("hex");
+      if (expectedSnapshot && expectedSnapshot !== snapshot) throw conflict("Workflow changed; restart read_workflow at offset zero without snapshot");
+      return { workflow, snapshot };
+    },
     async write(companyId: string, actor: AuthorizationActor, input: z.infer<typeof createWorkflowSchema> | z.infer<typeof updateWorkflowSchema>, id?: string) {
       const result = await db.transaction(async transaction => {
         const tx = transaction as unknown as Db;

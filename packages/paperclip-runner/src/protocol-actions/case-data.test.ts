@@ -18,6 +18,12 @@ describe("production case data contracts", () => {
         expect(validate(action.examples.call.input), JSON.stringify(validate.errors)).toBe(true);
         expect(validate({ ...action.examples.call.input, companyId: caseId })).toBe(false);
         if (action.id === "update_workflow") expect(validate({ workflowId: caseId, idempotencyKey: "empty" })).toBe(false);
+        if (action.id === "read_workflow") {
+          expect(validate({ workflowId: caseId, responseText: { offsetBytes: 0 } })).toBe(true);
+          expect(validate({ workflowId: caseId, responseText: { offsetBytes: 8192 } })).toBe(false);
+          expect(validate({ workflowId: caseId, snapshot: "a".repeat(64), responseText: { offsetBytes: 8192 } })).toBe(true);
+          expect(validate({ workflowId: caseId, snapshot: "invalid" })).toBe(false);
+        }
       }
     },
   );

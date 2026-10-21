@@ -35,9 +35,10 @@ overwrite intervening edits. The same case/task and document history survive
 A → B → A. Generic case updates cannot change workflow routing.
 
 `read_workflow` returns bounded JSON text in `data`. Continue with the same
-workflow ID and `responseText: {offsetBytes: <nextOffsetBytes>}` until the returned
-`responseText.nextOffsetBytes` is null, then parse the concatenated JSON. Restart
-if the definition changes during reading. Mutation responses contain metadata.
+workflow ID, returned `snapshot`, and `responseText: {offsetBytes: <nextOffsetBytes>}`
+until `responseText.nextOffsetBytes` is null, then parse the concatenated JSON.
+An intervening edit returns 409; restart at offset zero without `snapshot`.
+Mutation responses contain metadata.
 
 ## Core Model
 

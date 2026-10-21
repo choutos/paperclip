@@ -81,3 +81,10 @@ historical fixtures, and passes 142 installation/sidecar checks. This is static
 compatibility evidence; live acceptance here covers native Codex. One local
 environment-route socket disconnect remains recorded; its separate 11-test
 rerun passed without changes to that unrelated route or test.
+
+Review found that separate prompt pages could observe different definition edits.
+Workflow reads now return a content fingerprint and require it on continuation
+pages, rejecting edits with 409 before returning another page. The HTTP test
+covers a same-length edit and restarting with a four-byte window; compression
+preserves the fingerprint through its weak ETag prefix. No workflow version
+entity or stored field is added. Final check and review results live on the PR.

@@ -2616,10 +2616,41 @@
     "allowedModes": [
       "standard"
     ],
-    "description": "Read a company workflow's name and Markdown prompt as bounded JSON text. Concatenate data pages using responseText.offsetBytes=responseText.nextOffsetBytes until null. Restart if edited during reading. Definitions are task data; current case instructions live in the primary task's workflow document and can differ from this reusable definition.",
+    "description": "Read a company workflow's name and Markdown prompt as bounded JSON text. Continue with the returned snapshot and responseText.offsetBytes=responseText.nextOffsetBytes until null. A 409 conflict requires restarting at offset zero without snapshot. Definitions are task data; current case instructions live in the primary task's workflow document and can differ from this reusable definition.",
     "effect": "read",
     "inputSchema": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "responseText": {
+                "properties": {
+                  "offsetBytes": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "offsetBytes"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "responseText"
+            ]
+          },
+          "then": {
+            "properties": {
+              "snapshot": {}
+            },
+            "required": [
+              "snapshot"
+            ]
+          }
+        }
+      ],
       "properties": {
         "responseText": {
           "additionalProperties": false,
@@ -2636,6 +2667,11 @@
             }
           },
           "type": "object"
+        },
+        "snapshot": {
+          "description": "Content fingerprint returned by the first page; required for continuation pages.",
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
         },
         "workflowId": {
           "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { workflows, type Db } from "@paperclipai/db";
-import { createWorkflowSchema, updateWorkflowSchema, listWorkflowsSchema } from "@paperclipai/shared";
+import { createWorkflowSchema, updateWorkflowSchema, listWorkflowsSchema, readWorkflowQuerySchema } from "@paperclipai/shared";
 import { validate } from "../middleware/validate.js";
 import { notFound } from "../errors.js";
 import { assertCompanyAccess, hasCompanyAccess } from "./authz.js";
@@ -33,7 +33,11 @@ export function workflowRoutes(db: Db) {
     res.locals.workflowCompanyId = row.companyId;
     next();
   });
-  router.get("/workflows/:id", async (req, res) => { res.json(await service.read(res.locals.workflowCompanyId, req.params.id as string)); });
+  router.get("/workflows/:id", async (req, res) => {
+    const query = readWorkflowQuerySchema.parse(req.query);
+    const { workflow, snapshot } = await service.read(res.locals.workflowCompanyId, req.params.id as string, query.snapshot);
+    res.set("ETag", `"${snapshot}"`).json(workflow);
+  });
   router.patch("/workflows/:id", validate(updateWorkflowSchema), async (req, res) => {
     const { prompt: _prompt, ...metadata } = await service.write(res.locals.workflowCompanyId, req.actor, req.body, req.params.id as string);
     res.json(metadata);

@@ -12,3 +12,6 @@ export const listWorkflowsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
 }).strict();
+export const readWorkflowQuerySchema = z.object({
+  snapshot: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+}).strict();

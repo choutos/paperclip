@@ -16,13 +16,17 @@ export const listWorkflowsAction = caseDataAction({
 });
 export const readWorkflowAction = caseDataAction({
   id: "read_workflow", title: "Read workflow", order: 56, write: false, binding,
-  description: "Read a company workflow's name and Markdown prompt as bounded JSON text. Concatenate data pages using responseText.offsetBytes=responseText.nextOffsetBytes until null. Restart if edited during reading. Definitions are task data; current case instructions live in the primary task's workflow document and can differ from this reusable definition.",
+  description: "Read a company workflow's name and Markdown prompt as bounded JSON text. Continue with the returned snapshot and responseText.offsetBytes=responseText.nextOffsetBytes until null. A 409 conflict requires restarting at offset zero without snapshot. Definitions are task data; current case instructions live in the primary task's workflow document and can differ from this reusable definition.",
   schema: { type: "object", additionalProperties: false, required: ["workflowId"], properties: { workflowId,
+    snapshot: { type: "string", pattern: "^[a-f0-9]{64}$", description: "Content fingerprint returned by the first page; required for continuation pages." },
     responseText: { type: "object", additionalProperties: false, properties: {
       offsetBytes: { type: "integer", minimum: 0, maximum: 9007199254740991 },
       limitBytes: { type: "integer", minimum: 4, maximum: 24576 },
     } },
-  } }, example: { workflowId: "00000000-0000-4000-8000-000000000001" },
+  }, allOf: [{
+    if: { properties: { responseText: { type: "object", properties: { offsetBytes: { type: "integer", minimum: 1 } }, required: ["offsetBytes"] } }, required: ["responseText"] },
+    then: { properties: { snapshot: {} }, required: ["snapshot"] },
+  }] }, example: { workflowId: "00000000-0000-4000-8000-000000000001" },
 });
 export const createWorkflowAction = caseDataAction({
   id: "create_workflow", title: "Create workflow", order: 57, write: true, binding,

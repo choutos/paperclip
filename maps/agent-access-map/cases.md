@@ -192,6 +192,8 @@ Native `list_workflows`, `read_workflow`, `create_workflow`, `update_workflow` u
 the optional Cases group, including with generic API tools disabled. Writes use
 existing run/source-trust fences and mutation receipts. Bounded prompt reads use
 the native API JSON text paging path; every page checks current company access.
+Continuation pages require the first page's content snapshot; edits return 409
+and require restarting the read, so pages cannot silently combine definitions.
 Kickoff accepts either a workflow ID or inline text. Agent handoffs omit the ID
 to preserve, explicitly name an ID to adopt/refresh, or pass null to detach.
 Acceptance snapshots the prompt; transfer checks its task-document base revision

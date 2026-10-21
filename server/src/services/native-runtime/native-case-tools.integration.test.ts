@@ -114,13 +114,16 @@ describe("native case tools through authenticated production routes", () => {
     expect(created.data).not.toHaveProperty("prompt");
     expect(await f.call("create_workflow", input)).toEqual(created);
     expect(await f.call("list_workflows")).toMatchObject({ ok: true, data: [{ id: created.data.id, name: input.name }] });
-    let offsetBytes = 0, text = "";
+    let offsetBytes = 0, text = "", snapshot: string | undefined;
     for (let i = 0; ; i++) {
       expect(i).toBeLessThan(20);
-      const page = await f.call("read_workflow", { workflowId: created.data.id, responseText: { offsetBytes, limitBytes: 8192 } }) as {
-        ok: boolean; data: string; responseText: { nextOffsetBytes: number | null };
+      const page = await f.call("read_workflow", { workflowId: created.data.id, snapshot, responseText: { offsetBytes, limitBytes: 8192 } }) as {
+        ok: boolean; data: string; snapshot: string; responseText: { nextOffsetBytes: number | null };
       };
       expect(page.ok).toBe(true);
+      expect(page.snapshot).toMatch(/^[a-f0-9]{64}$/);
+      snapshot ??= page.snapshot;
+      expect(page.snapshot).toBe(snapshot);
       expect(Buffer.byteLength(page.data)).toBeLessThanOrEqual(8192);
       text += page.data;
       if (page.responseText.nextOffsetBytes === null) break;
@@ -130,7 +133,14 @@ describe("native case tools through authenticated production routes", () => {
     const receipt = await f.call("create_case", { idempotencyKey: "reusable-kickoff", title: "Reusable receipt", caseType: "loose",
       workflowId: created.data.id, kickoff: { toAgentId: f.agentId, phase: "custom phase", instructions: "Read workflow" } }) as { taskId: string; caseId: string };
     expect((await documentService(server.db).getIssueDocumentByKey(receipt.taskId, "workflow"))?.body).toBe(prompt);
-    expect(await f.call("update_workflow", { workflowId: created.data.id, idempotencyKey: "workflow-edit", prompt: "Updated" })).toMatchObject({ ok: true });
+    await expect(f.call("read_workflow", { workflowId: created.data.id, responseText: { offsetBytes: 8192 } })).rejects.toThrow("Invalid workflow arguments");
+    expect(await f.call("update_workflow", { workflowId: created.data.id, idempotencyKey: "workflow-edit", prompt: prompt.replaceAll("Reusable", "Adjusted") })).toMatchObject({ ok: true });
+    expect(await f.call("read_workflow", { workflowId: created.data.id, snapshot, responseText: { offsetBytes: 8192 } })).toMatchObject({ ok: false, status: 409 });
+    const restarted = await f.call("read_workflow", { workflowId: created.data.id, responseText: { limitBytes: 4 } }) as { ok: boolean; data: string; snapshot: string };
+    expect(restarted.ok).toBe(true);
+    expect(restarted.snapshot).toMatch(/^[a-f0-9]{64}$/);
+    expect(restarted.snapshot).not.toBe(snapshot);
+    expect(Buffer.byteLength(restarted.data)).toBeLessThanOrEqual(4);
     expect((await documentService(server.db).getIssueDocumentByKey(receipt.taskId, "workflow"))?.body).toBe(prompt);
     const foreign = await fixture();
     expect(await foreign.call("read_workflow", { workflowId: created.data.id })).toMatchObject({ ok: false, status: 404 });

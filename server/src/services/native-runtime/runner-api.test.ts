@@ -562,12 +562,12 @@ describe("runner API request boundary", () => {
   it("reads text windows from a live response and supplies stable snapshots", async () => {
     const text = "prefix\n" + "🧭é\n".repeat(6000) + "END-OF-EVIDENCE";
     const saveResponse = vi.fn(io(fetch).saveResponse);
-    const request = vi.fn<typeof fetch>(async () => new Response(text, { headers: { "content-type": "application/json" } }));
+    const request = vi.fn<typeof fetch>(async () => new Response(text, { headers: { "content-type": "application/json", etag: '"content-identity"' } }));
     let offsetBytes = 0;
     let received = "";
     do {
       const result = await executeRunnerApi({ operationId: projects, responseText: { offsetBytes, limitBytes: 4096 } }, context, { ...io(request), saveResponse }) as any;
-      expect(result).toMatchObject({ ok: true, responseText: { offsetBytes, totalBytes: Buffer.byteLength(text) } });
+      expect(result).toMatchObject({ ok: true, etag: '"content-identity"', responseText: { offsetBytes, totalBytes: Buffer.byteLength(text) } });
       expect(Buffer.byteLength(result.data)).toBeLessThanOrEqual(4096);
       received += result.data;
       offsetBytes = result.responseText.nextOffsetBytes;
