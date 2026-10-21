@@ -77,7 +77,7 @@ describe("server-owned Codex runner selection", () => {
   it.each(["grok_local", "cursor", "pi_local", "process", "external"])("keeps %s default unchanged", adapterType => {
     expect(resolveNewAgentRunner({ adapterType, target, adapterConfig: { custom: "preserved" } })).toEqual({ adapterType, adapterConfig: { custom: "preserved" } });
   });
-  it.each(qualifiedTargets)("defaults OpenCode to its native provider on $platform/$architecture", target => {
+  it.each(qualifiedTargets.filter(target => !(target.platform === "linux" && target.architecture === "arm64")))("defaults OpenCode to its native provider on $platform/$architecture", target => {
     const adapterConfig = { model: "openrouter/anthropic/claude-sonnet-4.6", dangerouslySkipPermissions: true, command: "opencode", env: { OPENROUTER_API_KEY: { type: "secret_ref", secretId: "connection" } }, cwd: "/workspace", instructionsFilePath: "/workspace/AGENTS.md" };
     const selected = resolveNewAgentRunner({ adapterType: "opencode_local", adapterConfig, target });
     expect(agentRunnerAvailability("opencode_local", target).defaultRunner).toBe("paperclip");
@@ -85,7 +85,7 @@ describe("server-owned Codex runner selection", () => {
     expect(resolveNewAgentRunner(selected)).toEqual(selected);
     expect(resolveNewAgentRunner({ ...selected, runner: "legacy" })).toMatchObject({ adapterType: "opencode_local", adapterConfig: { model: adapterConfig.model, dangerouslySkipPermissions: true } });
   });
-  it.each([{ driver: "local", platform: "win32", architecture: "x64" }, { driver: "local", platform: "linux", architecture: "arm64", libc: "musl" as const }, { driver: "local", platform: "linux", architecture: "x64", libc: "glibc" as const, glibcVersion: "2.38" }, { driver: "sandbox" }])("keeps OpenCode legacy on unqualified $driver/$platform targets", target => {
+  it.each([{ driver: "local", platform: "win32", architecture: "x64" }, { driver: "local", platform: "linux", architecture: "arm64", libc: "glibc" as const, glibcVersion: "2.39" }, { driver: "ssh", platform: "linux", architecture: "arm64", libc: "glibc" as const, glibcVersion: "2.39" }, { driver: "sandbox", platform: "linux", architecture: "arm64", libc: "glibc" as const, glibcVersion: "2.39" }, { driver: "local", platform: "linux", architecture: "arm64", libc: "musl" as const }, { driver: "local", platform: "linux", architecture: "x64", libc: "glibc" as const, glibcVersion: "2.38" }, { driver: "sandbox" }])("keeps OpenCode legacy on unqualified $driver/$platform targets", target => {
     const input = { adapterType: "opencode_local", adapterConfig: { model: "custom/model", command: "custom-opencode" }, target };
     expect(agentRunnerAvailability("opencode_local", target)).toEqual({ supportedRunners: ["legacy"], defaultRunner: "legacy" });
     expect(resolveNewAgentRunner(input)).toEqual({ adapterType: input.adapterType, adapterConfig: input.adapterConfig });

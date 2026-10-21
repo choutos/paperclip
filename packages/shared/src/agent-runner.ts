@@ -28,6 +28,7 @@ function supportsLinuxLibc(libc?: "glibc" | "musl" | "unknown", version?: string
 
 export function paperclipRunnerSupportsPlatform(harness: string, platform: string, architecture: string, libc?: "glibc" | "musl" | "unknown", glibcVersion?: string): boolean {
   return !!paperclipRunnerProfileForHarness(harness)
+    && !(harness === "opencode_local" && platform === "linux" && architecture === "arm64")
     && ((platform === "linux" && supportsLinuxLibc(libc, glibcVersion) && (architecture === "x64" || architecture === "arm64"))
       || (platform === "darwin" && (architecture === "arm64" || architecture === "x64")));
 }

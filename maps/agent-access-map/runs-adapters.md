@@ -64,8 +64,9 @@ and explicit overrides follow the [shared runner contract](../../packages/shared
 Claude follows its qualified rollout described above. The board inventory does not grant a
 native agent an equivalent discovery binding. See
 [probe restrictions](./execution-environments.md#probe) for acquiring qualification.
-OpenCode now follows the same qualified native default without the experimental
-flag. An explicit `provider/model` is required for test/hire; only server-owned
+OpenCode now follows the qualified native default without the experimental
+flag on macOS and GNU/Linux x64; Linux ARM64 retains Legacy. An explicit
+`provider/model` is required for test/hire; only server-owned
 inactive setup drafts may omit it. Saved runners and permission/lifecycle
 policies remain authoritative. Actor/company checks and board-only discovery
 remain unchanged. This is scoped source/control evidence for OpenCode selection,

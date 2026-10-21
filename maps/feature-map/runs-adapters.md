@@ -63,8 +63,10 @@ its qualified rollout described above. Disabled adapters, external overrides, an
 qualification also affect availability.
 
 Choose OpenCode with the native-runner experimental flag off on a qualified
-target. Advanced should show Paperclip Runner as the automatic default. Save an
-inactive draft without a model, resume it, select an explicit `provider/model`,
+macOS or GNU/Linux x64 target. Linux ARM64 must retain Legacy because its pinned
+OpenCode runtime is not qualified. Advanced should show Paperclip Runner as the
+automatic default on qualified targets. Save an inactive draft without a model,
+resume it, select an explicit `provider/model`,
 test, finish setup, and reload. Verify the saved provider is `opencode`. Repeat
 with explicit Legacy and an existing Legacy agent; neither should migrate on an
 unrelated edit. Check that saved native permission/lifecycle choices survive
