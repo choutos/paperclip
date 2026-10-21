@@ -139,8 +139,8 @@ export async function capturePaperclipWorkspace(
         }
       }
       const size = await pendingSizes.shift();
+      throwIfAborted();
       if (size == null) {
-        throwIfAborted();
         continue;
       }
       if (size <= MAX_FILE_BYTES) {
